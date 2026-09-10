@@ -5,7 +5,7 @@ import sys
 import time
 from pathlib import Path
 
-from src.watch.engine import COOKIE_HINT, download_video, list_creator_videos
+from src.watch.engine import COOKIE_HINT, download_video, list_creator_videos, parse_tiktok_video_url
 from src.watch.store import (
     HumanPace,
     archive_key,
@@ -55,6 +55,10 @@ def build_parser() -> argparse.ArgumentParser:
     watch = actions.add_parser("watch", help="按人类节奏循环检查")
     add_run_flags(watch)
     watch.add_argument("--interval", type=int, default=3600, help="检查间隔秒数，默认 3600，实际会加减抖动")
+
+    download = actions.add_parser("download", help="打开作品页后走官方下载按钮（downloadAddr）")
+    download.add_argument("urls", nargs="+", help="TikTok 作品页 URL")
+    download.add_argument("--out", type=Path, help="下载目录，默认 data/videos")
     return parser
 
 
@@ -164,6 +168,19 @@ def dispatch(args, state_dir: Path | None = None) -> int:
         except KeyboardInterrupt:
             print("已停止")
             return 0
+    if args.action == "download":
+        output_root = Path(args.out) if getattr(args, "out", None) else default_output_dir()
+        failures = 0
+        for url in args.urls:
+            try:
+                item = parse_tiktok_video_url(url)
+                dest = download_video(item, output_root, "https://www.tiktok.com/")
+            except Exception as exc:
+                print(f"[fail] {url}: {exc}")
+                failures += 1
+                continue
+            print(f"[ok] {dest} ({dest.stat().st_size} bytes)")
+        return 1 if failures else 0
     raise RuntimeError(f"未知命令: {args.action}")
 
 

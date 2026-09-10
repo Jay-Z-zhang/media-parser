@@ -114,6 +114,12 @@ python -m src.watch once
 python -m src.watch watch --interval 3600
 ```
 
+已知作品页时，走和网页右侧绿色下载按钮相同的路径：先打开页面拿到 Cookie，再请求 `video.downloadAddr`（不要对 CDN 冷请求，会 403）。
+
+```bash
+python -m src.watch download 'https://www.tiktok.com/@user/video/123'
+```
+
 文件保存在 `data/videos/`，订阅状态在 `data/watch/`。这套能力和 Web 解析 API 共用同一套平台解析器，后续改动都在本仓库。
 
 ---

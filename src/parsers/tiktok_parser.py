@@ -1,5 +1,6 @@
 import json
 import re
+import time
 
 from src.parser_factory import register_parser
 from src.parsers.base_parser import BaseParser
@@ -74,6 +75,23 @@ class TikTokParser(BaseParser):
         self.items = []
         if fetch:
             self._load()
+
+    def fetch_html_content(self):
+        last = None
+        for attempt in range(2):
+            try:
+                resp = self.session.get(self.real_url, headers=self.headers, timeout=20)
+                resp.raise_for_status()
+                last = resp.text or ""
+                if "__UNIVERSAL_DATA_FOR_REHYDRATION__" in last or "SIGI_STATE" in last:
+                    self.html_content = last
+                    return last
+            except Exception:
+                pass
+            if attempt == 0:
+                time.sleep(1.5)
+        self.html_content = last
+        return last
 
     def _load(self):
         html = self.fetch_html_content()

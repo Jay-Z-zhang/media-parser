@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from src.watch.cli import build_parser, dispatch
-from src.watch.engine import VideoItem, list_creator_videos
+from src.watch.engine import VideoItem, download_video, list_creator_videos, parse_tiktok_video_url
 from src.watch.store import (
     HumanPace,
     enabled_targets,
@@ -55,12 +55,59 @@ class WatchEngineTests(unittest.TestCase):
         mock_cls.assert_called_once()
         self.assertEqual(mock_cls.call_args.kwargs.get("fetch"), False)
 
+    def test_parse_tiktok_video_url(self):
+        item = parse_tiktok_video_url(
+            "https://www.tiktok.com/@zihan_music/video/7682625310977707272?is_from_webapp=1"
+        )
+        self.assertEqual(item.video_id, "7682625310977707272")
+        self.assertEqual(item.page_url, "https://www.tiktok.com/@zihan_music/video/7682625310977707272")
+        with self.assertRaises(ValueError):
+            parse_tiktok_video_url("https://www.tiktok.com/@zihan_music")
+
+    def test_tiktok_download_uses_page_session(self):
+        item = VideoItem(
+            "tiktok",
+            "123",
+            "123",
+            "https://stale.example/old.mp4",
+            "https://www.tiktok.com/@foo/video/123",
+        )
+        payload = b"\x00\x00\x00\x20ftypisom" + b"\x00" * 2048
+
+        class FakeResponse:
+            def raise_for_status(self):
+                return None
+
+            def iter_content(self, size):
+                yield payload
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        with tempfile.TemporaryDirectory() as tmp, patch("src.watch.engine.TikTokParser") as mock_cls:
+            parser = mock_cls.return_value
+            parser.get_real_video_url.return_value = "https://cdn.tiktok.com/dl.mp4"
+            parser.get_title_content.return_value = "hello"
+            parser.headers = {"User-Agent": "UA"}
+            parser.session.get.return_value = FakeResponse()
+            dest = download_video(item, Path(tmp), "https://www.tiktok.com/")
+            self.assertTrue(dest.exists())
+            self.assertGreater(dest.stat().st_size, 1024)
+            parser.session.get.assert_called_once()
+            self.assertEqual(parser.session.get.call_args.args[0], "https://cdn.tiktok.com/dl.mp4")
+
 
 class WatchCliTests(unittest.TestCase):
     def test_parser_add(self):
         args = build_parser().parse_args(["add", "--platform", "tiktok", "--creator", "@foo"])
         self.assertEqual(args.action, "add")
         self.assertEqual(args.creator, "@foo")
+        args = build_parser().parse_args(["download", "https://www.tiktok.com/@foo/video/123"])
+        self.assertEqual(args.action, "download")
+        self.assertEqual(args.urls, ["https://www.tiktok.com/@foo/video/123"])
 
     def test_dispatch_add_and_once_dry_run(self):
         with tempfile.TemporaryDirectory() as tmp:

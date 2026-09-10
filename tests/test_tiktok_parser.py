@@ -29,6 +29,13 @@ class TikTokParserTest(unittest.TestCase):
         url = play_url_from_video({"downloadAddr": {"url_list": ["https://cdn.tiktok.com/a.mp4"]}})
         self.assertEqual(url, "https://cdn.tiktok.com/a.mp4")
 
+    def test_prefers_download_addr_over_play_addr(self):
+        url = play_url_from_video({
+            "playAddr": "https://cdn.tiktok.com/play.mp4",
+            "downloadAddr": "https://cdn.tiktok.com/dl.mp4",
+        })
+        self.assertEqual(url, "https://cdn.tiktok.com/dl.mp4")
+
     def test_collect_item_structs(self):
         items = collect_item_structs(HYDRATION)
         self.assertEqual(len(items), 1)
