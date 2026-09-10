@@ -144,6 +144,9 @@ class UrlParser:
         if domain in {'yangshipin.cn', 'yspapp.cn'} or domain.endswith('.yangshipin.cn') or domain.endswith('.yspapp.cn'):
             return '央视频'
 
+        if domain == 'tiktok.com' or domain.endswith('.tiktok.com'):
+            return 'TikTok'
+
         return None
 
     @staticmethod

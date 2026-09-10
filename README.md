@@ -89,8 +89,32 @@ Media-Parser是一款专为短视频创作者与开发者打造的**100%原生�
 | **星绘AI** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |  |
 | **央视** | ✓ | ✓ |  | ✓ | ✓ |  |  |  |  |  |
 | **央视频** | ✓ | ✓ |  | ✓ |  | ✓ |  |  |  |  |
+| **TikTok** | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |  |  |
 
 *注：腾讯元宝等极少数平台提取的是官方存储桶原画质直链，素材保留官方原生水印。
+
+---
+
+## 📥 创作者订阅下载
+
+盯一个抖音或 TikTok 公开主页，按人的节奏定期把新短视频拉到本地。**登录不是必须的**；被风控拦住时再配 `DOUYIN_COOKIE`。
+
+```bash
+# 订阅（TikTok @账号 或抖音主页 / sec_uid）
+python -m src.watch add --platform tiktok --creator @账号名 --max-per-run 3
+python -m src.watch add --platform douyin --creator https://www.douyin.com/user/MS4wLj... --max-per-run 3
+
+# 先看会下哪些，不落盘
+python -m src.watch once --dry-run
+
+# 真下最新几条
+python -m src.watch once
+
+# 大约每小时检查一次（带抖动）
+python -m src.watch watch --interval 3600
+```
+
+文件保存在 `data/videos/`，订阅状态在 `data/watch/`。这套能力和 Web 解析 API 共用同一套平台解析器，后续改动都在本仓库。
 
 ---
 

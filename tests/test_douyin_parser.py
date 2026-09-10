@@ -753,6 +753,16 @@ class DouyinParserTest(unittest.TestCase):
                     )
 
 
+    def test_list_user_awemes_uses_signed_post_api(self):
+        parser = self.make_parser()
+        parser.real_url = "https://www.douyin.com/user/MS4wLjABAAAAabcd"
+        with patch.object(parser, "_request_api_with_retry", return_value={"aweme_list": [{"aweme_id": "1"}, {"aweme_id": "2"}]}) as mock_api:
+            items = parser.list_user_awemes(count=2)
+        self.assertEqual(len(items), 2)
+        self.assertIn("aweme/post", mock_api.call_args.args[0])
+        self.assertIn("MS4wLjABAAAAabcd", mock_api.call_args.args[0])
+
+
 if __name__ == "__main__":
     unittest.main()
 

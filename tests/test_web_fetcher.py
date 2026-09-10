@@ -137,6 +137,10 @@ class UrlParserTest(unittest.TestCase):
             "视频号",
         )
 
+    def test_recognizes_tiktok_domains(self):
+        self.assertEqual(UrlParser.get_platform("https://www.tiktok.com/@foo/video/123"), "TikTok")
+        self.assertEqual(UrlParser.get_platform("https://vm.tiktok.com/ZMxxx/"), "TikTok")
+
     def test_recognizes_supplemented_domain_variants(self):
         cases = [
             ("https://sv.baidu.com/videoui/page/videoland?context=abc", "好看视频"),

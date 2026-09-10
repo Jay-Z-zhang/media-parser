@@ -62,7 +62,7 @@ MOBILE_FEED_USER_AGENT = (
 
 @register_parser("抖音")
 class DouyinParser(BaseParser):
-    def __init__(self, real_url):
+    def __init__(self, real_url, fetch=True):
         super().__init__(real_url)
         self.signer = BogusSigner()
         self.headers = {
@@ -95,7 +95,7 @@ class DouyinParser(BaseParser):
         # 注意：不在此处预取网页 HTML。抖音 PC 端 /video/{id} 页面现已是纯客户端渲染的空壳
         # （固定 72KB，不含 __UNIVERSAL_DATA_FOR_REHYDRATION__ / aweme_detail / 标题），
         # 预取既拿不到数据，又多消耗一次请求配额并增加整体延迟。改为仅在 API 全部失败时惰性拉取。
-        self.data = self.fetch_html_data()
+        self.data = self.fetch_html_data() if fetch else None
 
     def fetch_html_content(self):
         """优先请求 PC 端网页以获取完整的 SSR 数据"""
@@ -272,6 +272,51 @@ class DouyinParser(BaseParser):
         # 全部重试耗尽后才让下一次解析换一个 ttwid，避免正常路径上的无谓 churn
         DouyinParser._TTWID_CACHE = None
         return None
+
+    def list_user_awemes(self, count=10, max_cursor=0):
+        """拉取创作者主页最近作品（默认匿名，无需登录）。"""
+        sec_uid = self._resolve_sec_user_id()
+        if not sec_uid:
+            return []
+        count = max(1, int(count))
+        api = (
+            "https://www.douyin.com/aweme/v1/web/aweme/post/"
+            f"?sec_user_id={urllib.parse.quote(sec_uid)}"
+            f"&max_cursor={int(max_cursor)}&count={count}"
+            "&device_platform=webapp&aid=6383&channel=channel_pc_web"
+        )
+        data = self._request_api_with_retry(
+            api,
+            referer=f"https://www.douyin.com/user/{sec_uid}",
+            validate=lambda d: isinstance(d.get("aweme_list"), list),
+        )
+        if not data:
+            return []
+        return [item for item in (data.get("aweme_list") or []) if isinstance(item, dict)]
+
+    def _resolve_sec_user_id(self):
+        raw = (self.real_url or "").strip()
+        match = re.search(r"/user/([^/?#]+)", raw)
+        candidate = urllib.parse.unquote(match.group(1) if match else raw)
+        candidate = candidate.strip().strip("/")
+        if candidate.startswith("MS4wLj"):
+            return candidate
+        if not candidate:
+            return None
+        if not self.html_content:
+            profile_url = raw if "douyin.com" in raw else f"https://www.douyin.com/user/{candidate}"
+            target = self.real_url
+            self.real_url = profile_url
+            try:
+                self.fetch_html_content()
+            finally:
+                self.real_url = target
+        html = self.html_content or ""
+        found = re.search(r'"sec_uid"\s*:\s*"(MS4wLj[^"]+)"', html)
+        if found:
+            return found.group(1)
+        found = re.search(r'"secUid"\s*:\s*"(MS4wLj[^"]+)"', html)
+        return found.group(1) if found else candidate
 
     def _request_mobile_feed(self, aweme_id):
         """
