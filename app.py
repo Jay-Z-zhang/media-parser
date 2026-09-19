@@ -1,6 +1,10 @@
 import os
 import secrets
-import fcntl
+
+try:
+    import fcntl
+except ImportError:  # Windows 平台无 fcntl，退化为无文件锁
+    fcntl = None
 from datetime import timedelta
 from flask import Flask
 from src.api.parse import bp as api_bp
@@ -20,7 +24,8 @@ def _load_or_create_secret(data_dir):
     try:
         descriptor = os.open(secret_path, os.O_RDWR | os.O_CREAT, 0o600)
         with os.fdopen(descriptor, "r+", encoding="utf-8") as secret_file:
-            fcntl.flock(secret_file.fileno(), fcntl.LOCK_EX)
+            if fcntl is not None:
+                fcntl.flock(secret_file.fileno(), fcntl.LOCK_EX)
             saved = secret_file.read().strip()
             if saved:
                 return saved
